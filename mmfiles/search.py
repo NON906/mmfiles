@@ -32,6 +32,9 @@ with redirect_stdout(sys.stderr):
     ).eval()
     processor = ColQwen2_5OmniProcessor.from_pretrained("vidore/colqwen-omni-v0.1")
 
+file_vectors = None
+file_details = None
+
 def tensor_to_buffer(tensor: torch.Tensor) -> bytes:
     buffer = BytesIO()
     torch.save(tensor, buffer)
@@ -45,6 +48,8 @@ def change_base_dir(path: str):
     base_dir_path = path
 
 def update():
+    global file_vectors, file_details
+
     db_conn = sqlite3.connect(db_path)
 
     cursor = db_conn.cursor()
@@ -192,9 +197,74 @@ def update():
             cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
         del target_audio_datas
 
+    file_vectors = None
+    file_details = None
+
     db_conn.commit()
     db_conn.close()
+
+def search(query: str, allow_types=["text", "image", "audio"], k=10) -> list:
+    global file_vectors, file_details
+
+    db_conn = sqlite3.connect(db_path)
+
+    if file_vectors is None:
+        file_vectors = []
+        file_details = []
+        for current, subfolders, subfiles in os.walk(base_dir_path):
+            for subfile in subfiles:
+                subfile_path = os.path.abspath(os.path.join(current, subfile))
+                cursor = db_conn.cursor()
+                sql = """SELECT vector, note FROM file_hashes INNER JOIN search_vectors USING(file_hash) LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
+                cursor.execute(sql, (subfile_path, ))
+                results = cursor.fetchall()
+                for result in results:
+                    _, ext = os.path.splitext(subfile_path)
+                    ext = ext.lower()
+                    if ext in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]:
+                        file_type = "image"
+                    elif ext in [".wav", ".mp3", ".ogg", ".flac", ".aac", ".m4a"]:
+                        file_type = "audio"
+                    elif ext in [".mp4", ".mov", ".wmv", ".avi", ".webm", ".flv", ".mkv"]:
+                        file_type = "video"
+                    elif ext in [".pdf", ".docx", ".pptx"]:
+                        file_type = "document"
+                    else:
+                        file_type = "text"
+                    if file_type in allow_types:
+                        file_vectors.append(buffer_to_tensor(result[0]))
+                        file_details.append({
+                            "path": subfile_path,
+                            "note": result[1],
+                            "type": file_type
+                        })
+    
+    batch_queries = processor.process_queries([query]).to(model.device)
+    with torch.no_grad():
+        query_embeddings = model(**batch_queries)
+    scores = processor.score_multi_vector(query_embeddings, file_vectors)
+    rank_list = scores[0].topk(len(file_vectors)).indices.tolist()
+
+    ret_list = []
+    for rank_index in rank_list:
+        next_flag = False
+        for ret_item in ret_list:
+            if file_details[rank_index]["path"] == ret_item["path"]:
+                next_flag = True
+                break
+        if next_flag:
+            continue
+        
+        ret_list.append(file_details[rank_index])
+
+        if len(ret_list) >= k:
+            break
+
+    db_conn.close()
+
+    return ret_list
 
 if __name__ == "__main__":
     change_base_dir("files")
     update()
+    print(search("テストファイル"))
