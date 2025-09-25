@@ -17,7 +17,6 @@ f"""以下の質問に答えてください。
 以下は、回答を生成するためにRAGシステムが検索・参照した情報です。
 
 """]
-        search.change_base_dir("files")
         search.update()
         search_result = search.search(question)
         for index, result_item in enumerate(search_result):
@@ -42,5 +41,8 @@ f"""以下の質問に答えてください。
             ret_datas.append(base.UserMessage(data))
 
         return ret_datas
+
+    search.change_base_dir("files")
+    search.update()
 
     return mcp

@@ -78,7 +78,11 @@ def update():
             cursor = db_conn.cursor()
             sql = """SELECT file_hash FROM file_hashes WHERE path=?"""
             cursor.execute(sql, (subfile_path, ))
-            hash_on_db = cursor.fetchone()[0]
+            hash_temp = cursor.fetchone()
+            if hash_temp is not None:
+                hash_on_db = hash_temp[0]
+            else:
+                hash_on_db = None
             with open(subfile_path, "rb") as f:
                 file_data = f.read()
                 hash_on_file = hashlib.sha256(file_data).hexdigest()
