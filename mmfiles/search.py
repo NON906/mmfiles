@@ -47,6 +47,47 @@ def change_base_dir(path: str):
     global base_dir_path
     base_dir_path = path
 
+files_init_allow_types = ["text", "image", "audio"]
+def files_init(allow_types=None):
+    global file_vectors, file_details, files_init_allow_types
+
+    if allow_types is None:
+        allow_types = files_init_allow_types
+    if files_init_allow_types == allow_types and file_vectors is not None:
+        return
+    files_init_allow_types = allow_types
+
+    db_conn = sqlite3.connect(db_path)
+    file_vectors = []
+    file_details = []
+    for current, subfolders, subfiles in os.walk(base_dir_path):
+        for subfile in subfiles:
+            subfile_path = os.path.abspath(os.path.join(current, subfile))
+            cursor = db_conn.cursor()
+            sql = """SELECT vector, note FROM file_hashes INNER JOIN search_vectors USING(file_hash) LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
+            cursor.execute(sql, (subfile_path, ))
+            results = cursor.fetchall()
+            for result in results:
+                _, ext = os.path.splitext(subfile_path)
+                ext = ext.lower()
+                if ext in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]:
+                    file_type = "image"
+                elif ext in [".wav", ".mp3", ".ogg", ".flac", ".aac", ".m4a"]:
+                    file_type = "audio"
+                elif ext in [".mp4", ".mov", ".wmv", ".avi", ".webm", ".flv", ".mkv"]:
+                    file_type = "video"
+                elif ext in [".pdf", ".docx", ".pptx"]:
+                    file_type = "document"
+                else:
+                    file_type = "text"
+                if file_type in allow_types:
+                    file_vectors.append(buffer_to_tensor(result[0]))
+                    file_details.append({
+                        "path": subfile_path,
+                        "note": result[1],
+                        "type": file_type
+                    })
+
 def update():
     global file_vectors, file_details
 
@@ -207,41 +248,12 @@ def update():
     db_conn.commit()
     db_conn.close()
 
-def search(query: str, allow_types=["text", "image", "audio"], k=10) -> list:
+def search(query: str, k=5) -> list:
     global file_vectors, file_details
 
-    db_conn = sqlite3.connect(db_path)
+    files_init()
 
-    if file_vectors is None:
-        file_vectors = []
-        file_details = []
-        for current, subfolders, subfiles in os.walk(base_dir_path):
-            for subfile in subfiles:
-                subfile_path = os.path.abspath(os.path.join(current, subfile))
-                cursor = db_conn.cursor()
-                sql = """SELECT vector, note FROM file_hashes INNER JOIN search_vectors USING(file_hash) LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
-                cursor.execute(sql, (subfile_path, ))
-                results = cursor.fetchall()
-                for result in results:
-                    _, ext = os.path.splitext(subfile_path)
-                    ext = ext.lower()
-                    if ext in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]:
-                        file_type = "image"
-                    elif ext in [".wav", ".mp3", ".ogg", ".flac", ".aac", ".m4a"]:
-                        file_type = "audio"
-                    elif ext in [".mp4", ".mov", ".wmv", ".avi", ".webm", ".flv", ".mkv"]:
-                        file_type = "video"
-                    elif ext in [".pdf", ".docx", ".pptx"]:
-                        file_type = "document"
-                    else:
-                        file_type = "text"
-                    if file_type in allow_types:
-                        file_vectors.append(buffer_to_tensor(result[0]))
-                        file_details.append({
-                            "path": subfile_path,
-                            "note": result[1],
-                            "type": file_type
-                        })
+    db_conn = sqlite3.connect(db_path)
     
     batch_queries = processor.process_queries([query]).to(model.device)
     with torch.no_grad():
@@ -271,4 +283,5 @@ def search(query: str, allow_types=["text", "image", "audio"], k=10) -> list:
 if __name__ == "__main__":
     change_base_dir("files")
     update()
+    files_init()
     print(search("テストファイル"))
