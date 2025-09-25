@@ -6,7 +6,7 @@ def mcp_server_main():
     mcp = FastMCP("mmfiles")
 
     @mcp.prompt(title="マルチモーダルRAGで検索（日本語）")
-    def search_prompt(question: str) -> str:
+    def mmfiles_search_prompt(question: str) -> str:
         datas = [
 f"""以下の質問に答えてください。
 
@@ -41,6 +41,26 @@ f"""以下の質問に答えてください。
             ret_datas.append(base.UserMessage(data))
 
         return ret_datas
+
+    @mcp.tool()
+    def mmfiles_search_rag(query: str, top_k=3) -> tuple:
+        """Retrieve files using Multi-modal RAG
+
+Arguments:
+- query: The search query string.
+- top_k: The maximum number of items to fetch."""
+        search.update()
+        search_result = search.search(query, k=top_k)
+        ret_list = [search_result, ]
+        for result_item in search_result:
+            if result_item["type"] == "text":
+                with open(result_item["path"], "r", encoding="utf-8") as f:
+                    ret_list.append(f.read())
+            elif result_item["type"] == "image":
+                ret_list.append(Image(result_item["path"]))
+            elif result_item["type"] == "audio":
+                ret_list.append(Audio(result_item["path"]))
+        return tuple(ret_list)
 
     search.change_base_dir("files")
     search.update()
