@@ -5,7 +5,7 @@ from . import search
 def mcp_server_main():
     mcp = FastMCP("mmfiles")
 
-    @mcp.prompt(title="with multi-modal RAG")
+    @mcp.prompt(title="マルチモーダルRAGで検索（日本語）")
     def search_prompt(question: str) -> str:
         datas = [
 f"""以下の質問に答えてください。
