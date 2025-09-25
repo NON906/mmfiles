@@ -1,4 +1,5 @@
-
+from .mcp import mcp_server_main
 
 def main_mcp():
-    pass
+    mcp = mcp_server_main()
+    mcp.run()

@@ -9,6 +9,7 @@ dependencies = [
     "bitsandbytes>=0.47.0",
     "colpali-engine>=0.3.12",
     "librosa>=0.11.0",
+    "mcp>=1.14.1",
     "pillow>=11.3.0",
     "python-dotenv>=1.1.1",
     "soundfile>=0.13.1",
