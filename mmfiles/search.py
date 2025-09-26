@@ -7,7 +7,7 @@ from contextlib import redirect_stdout
 from dotenv import load_dotenv
 from torch.utils.data import DataLoader
 from PIL import Image
-import soundfile
+import librosa
 from colpali_engine.models import ColQwen2_5Omni, ColQwen2_5OmniProcessor
 import torch
 from transformers import BitsAndBytesConfig
@@ -225,7 +225,7 @@ def update():
     if len(target_audio_files) > 0:
         target_audio_datas = []
         for target_file in target_audio_files:
-            data, _ = soundfile.read(target_file["path"])
+            data, _ = librosa.load(target_file["path"], sr=24000, mono=True)
             target_audio_datas.append(data)
         dataloader = DataLoader(
             dataset=target_audio_datas,
