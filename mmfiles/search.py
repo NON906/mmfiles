@@ -87,6 +87,7 @@ def files_init(allow_types=None):
                         "note": result[1],
                         "type": file_type
                     })
+    db_conn.close()
 
 def update():
     global file_vectors, file_details
@@ -107,7 +108,10 @@ def update():
         cursor.execute(sql)
     if not ("search_vectors", ) in table_names:
         cursor = db_conn.cursor()
-        sql = """CREATE TABLE IF NOT EXISTS search_vectors(file_hash STRING PRIMARY KEY, type INTEGER, vector BLOB)"""
+        sql = """CREATE TABLE IF NOT EXISTS search_vectors(id INTEGER PRIMARY KEY AUTOINCREMENT, file_hash STRING, type INTEGER, vector BLOB)"""
+        cursor.execute(sql)
+        cursor = db_conn.cursor()
+        sql = """CREATE INDEX search_vectors_hash on search_vectors(file_hash)"""
         cursor.execute(sql)
 
     target_text_files = []
@@ -199,7 +203,7 @@ def update():
             ds = data_embedding(dataloader)
         for target_file, target_vector in zip(target_text_files, ds):
             cursor = db_conn.cursor()
-            sql = """INSERT INTO search_vectors VALUES(?,0,?)"""
+            sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
             cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
         del target_text_datas
 
@@ -218,7 +222,7 @@ def update():
             ds = data_embedding(dataloader)
         for target_file, target_vector in zip(target_image_files, ds):
             cursor = db_conn.cursor()
-            sql = """INSERT INTO search_vectors VALUES(?,0,?)"""
+            sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
             cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
         del target_image_datas
 
@@ -238,7 +242,7 @@ def update():
             ds = data_embedding(dataloader)
         for target_file, target_vector in zip(target_audio_files, ds):
             cursor = db_conn.cursor()
-            sql = """INSERT INTO search_vectors VALUES(?,0,?)"""
+            sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
             cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
         del target_audio_datas
 
@@ -279,6 +283,37 @@ def search(query: str, k=5) -> list:
     db_conn.close()
 
     return ret_list
+
+def edit_note(note: str, path: str):
+    db_conn = sqlite3.connect(db_path)
+
+    cursor = db_conn.cursor()
+    sql = """SELECT file_hash, note FROM file_hashes LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
+    cursor.execute(sql, (path, ))
+    file_hash, old_note = cursor.fetchone()
+
+    batch_queries = processor.process_queries([note]).to(model.device)
+    with torch.no_grad():
+        query_embeddings = model(**batch_queries)
+        target_vector = torch.unbind(query_embeddings.to("cpu"))[0]
+
+    if old_note is None:
+        cursor = db_conn.cursor()
+        sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,1,?)"""
+        cursor.execute(sql, (file_hash, tensor_to_buffer(target_vector)))
+        cursor = db_conn.cursor()
+        sql = """INSERT INTO notes VALUES(?,?)"""
+        cursor.execute(sql, (file_hash, note))
+    else:
+        cursor = db_conn.cursor()
+        sql = """UPDATE search_vectors SET vector=? WHERE file_hash=? AND type=1"""
+        cursor.execute(sql, (tensor_to_buffer(target_vector), file_hash))
+        cursor = db_conn.cursor()
+        sql = """UPDATE notes SET note=? WHERE file_hash=?"""
+        cursor.execute(sql, (note, file_hash))
+
+    db_conn.commit()
+    db_conn.close()
 
 if __name__ == "__main__":
     change_base_dir("files")

@@ -8,6 +8,7 @@ dependencies = [
     "accelerate>=1.10.1",
     "bitsandbytes>=0.47.0",
     "colpali-engine>=0.3.12",
+    "gradio>=5.47.1",
     "librosa>=0.11.0",
     "mcp>=1.14.1",
     "pillow>=11.3.0",
@@ -19,6 +20,7 @@ dependencies = [
 
 [project.scripts]
 mmfiles-mcp = "mmfiles:main_mcp"
+mmfiles = "mmfiles:main_app"
 
 [build-system]
 requires = ["hatchling"]
