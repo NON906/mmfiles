@@ -119,6 +119,8 @@ def update():
     target_audio_files = []
     for current, subfolders, subfiles in os.walk(base_dir_path):
         for subfile in subfiles:
+            if subfile[0] == ".":
+                continue
             subfile_path = os.path.abspath(os.path.join(current, subfile))
             cursor = db_conn.cursor()
             sql = """SELECT file_hash FROM file_hashes WHERE path=?"""
@@ -311,7 +313,11 @@ def edit_note(note: str, path: str):
     cursor = db_conn.cursor()
     sql = """SELECT file_hash, note FROM file_hashes LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
     cursor.execute(sql, (path, ))
-    file_hash, old_note = cursor.fetchone()
+    fetch_data = cursor.fetchone()
+    if fetch_data is None:
+        db_conn.close()
+        return
+    file_hash, old_note = fetch_data
 
     batch_queries = processor.process_queries([note]).to(model.device)
     with torch.no_grad():

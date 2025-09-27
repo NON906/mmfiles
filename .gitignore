@@ -9,5 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-/files/
+/files/*
+!/files/.please_put_files_here
 /.mmfiles.db
