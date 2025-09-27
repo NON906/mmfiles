@@ -16,6 +16,8 @@ global_select_file_index = -1
 
 def search_ui_init_inputs(base_path):
     global global_base_path
+    if not os.path.isdir(base_path):
+        return
     global_base_path = base_path
 
 def search_ui_init():
@@ -23,6 +25,8 @@ def search_ui_init():
 
 def search_ui_base_path_on_changed(base_path):
     global global_base_path
+    if not os.path.isdir(base_path):
+        return
     global_base_path = base_path
 
 def search_button_click(search_query_input, search_image_input, min_rate, top_k):

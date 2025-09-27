@@ -48,46 +48,6 @@ def change_base_dir(path: str):
     base_dir_path = path
 
 files_init_allow_types = ["text", "image", "audio"]
-def files_init(allow_types=None):
-    global file_vectors, file_details, files_init_allow_types
-
-    if allow_types is None:
-        allow_types = files_init_allow_types
-    if files_init_allow_types == allow_types and file_vectors is not None:
-        return
-    files_init_allow_types = allow_types
-
-    db_conn = sqlite3.connect(db_path)
-    file_vectors = []
-    file_details = []
-    for current, subfolders, subfiles in os.walk(base_dir_path):
-        for subfile in subfiles:
-            subfile_path = os.path.abspath(os.path.join(current, subfile))
-            cursor = db_conn.cursor()
-            sql = """SELECT vector, note FROM file_hashes INNER JOIN search_vectors USING(file_hash) LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
-            cursor.execute(sql, (subfile_path, ))
-            results = cursor.fetchall()
-            for result in results:
-                _, ext = os.path.splitext(subfile_path)
-                ext = ext.lower()
-                if ext in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]:
-                    file_type = "image"
-                elif ext in [".wav", ".mp3", ".ogg", ".flac", ".aac", ".m4a"]:
-                    file_type = "audio"
-                elif ext in [".mp4", ".mov", ".wmv", ".avi", ".webm", ".flv", ".mkv"]:
-                    file_type = "video"
-                elif ext in [".pdf", ".docx", ".pptx"]:
-                    file_type = "document"
-                else:
-                    file_type = "text"
-                if file_type in allow_types:
-                    file_vectors.append(buffer_to_tensor(result[0]))
-                    file_details.append({
-                        "path": subfile_path,
-                        "note": result[1],
-                        "type": file_type
-                    })
-    db_conn.close()
 
 def update():
     global file_vectors, file_details
@@ -190,68 +150,109 @@ def update():
         return ds
 
     if len(target_text_files) > 0:
-        target_text_datas = []
-        for target_file in target_text_files:
-            with open(target_file["path"], "r", encoding="utf-8") as f:
-                target_text_datas.append(f.read())
-        dataloader = DataLoader(
-            dataset=target_text_datas,
-            batch_size=4,
-            shuffle=False,
-            collate_fn=lambda x: processor.process_queries(x),
-        )
         with redirect_stdout(sys.stderr):
             print("Embedding texts.")
+            target_text_datas = []
+            for target_file in target_text_files:
+                with open(target_file["path"], "r", encoding="utf-8") as f:
+                    target_text_datas.append(f.read())
+            dataloader = DataLoader(
+                dataset=target_text_datas,
+                batch_size=4,
+                shuffle=False,
+                collate_fn=lambda x: processor.process_queries(x),
+            )
             ds = data_embedding(dataloader)
-        for target_file, target_vector in zip(target_text_files, ds):
-            cursor = db_conn.cursor()
-            sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
-            cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
-        del target_text_datas
+            for target_file, target_vector in zip(target_text_files, ds):
+                cursor = db_conn.cursor()
+                sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
+                cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
+            del target_text_datas
 
     if len(target_image_files) > 0:
-        target_image_datas = []
-        for target_file in target_image_files:
-            target_image_datas.append(Image.open(target_file["path"]))
-        dataloader = DataLoader(
-            dataset=target_image_datas,
-            batch_size=2,
-            shuffle=False,
-            collate_fn=lambda x: processor.process_images(x),
-        )
         with redirect_stdout(sys.stderr):
             print("Embedding images.")
+            target_image_datas = []
+            for target_file in target_image_files:
+                target_image_datas.append(Image.open(target_file["path"]))
+            dataloader = DataLoader(
+                dataset=target_image_datas,
+                batch_size=2,
+                shuffle=False,
+                collate_fn=lambda x: processor.process_images(x),
+            )
             ds = data_embedding(dataloader)
-        for target_file, target_vector in zip(target_image_files, ds):
-            cursor = db_conn.cursor()
-            sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
-            cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
-        del target_image_datas
+            for target_file, target_vector in zip(target_image_files, ds):
+                cursor = db_conn.cursor()
+                sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
+                cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
+            del target_image_datas
 
     if len(target_audio_files) > 0:
-        target_audio_datas = []
-        for target_file in target_audio_files:
-            data, _ = librosa.load(target_file["path"], sr=24000, mono=True)
-            target_audio_datas.append(data)
-        dataloader = DataLoader(
-            dataset=target_audio_datas,
-            batch_size=2,
-            shuffle=False,
-            collate_fn=lambda x: processor.process_audios(x),
-        )
         with redirect_stdout(sys.stderr):
             print("Embedding audios.")
+            target_audio_datas = []
+            for target_file in target_audio_files:
+                data, _ = librosa.load(target_file["path"], sr=24000, mono=True)
+                target_audio_datas.append(data)
+            dataloader = DataLoader(
+                dataset=target_audio_datas,
+                batch_size=2,
+                shuffle=False,
+                collate_fn=lambda x: processor.process_audios(x),
+            )
             ds = data_embedding(dataloader)
-        for target_file, target_vector in zip(target_audio_files, ds):
-            cursor = db_conn.cursor()
-            sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
-            cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
-        del target_audio_datas
+            for target_file, target_vector in zip(target_audio_files, ds):
+                cursor = db_conn.cursor()
+                sql = """INSERT INTO search_vectors(file_hash, type, vector) VALUES(?,0,?)"""
+                cursor.execute(sql, (target_file["hash"], tensor_to_buffer(target_vector)))
+            del target_audio_datas
 
     file_vectors = None
     file_details = None
 
     db_conn.commit()
+    db_conn.close()
+
+def files_init(allow_types=None):
+    global file_vectors, file_details, files_init_allow_types
+
+    if allow_types is None:
+        allow_types = files_init_allow_types
+    if files_init_allow_types == allow_types and file_vectors is not None:
+        return
+    files_init_allow_types = allow_types
+
+    db_conn = sqlite3.connect(db_path)
+    file_vectors = []
+    file_details = []
+    for current, subfolders, subfiles in os.walk(base_dir_path):
+        for subfile in subfiles:
+            subfile_path = os.path.abspath(os.path.join(current, subfile))
+            cursor = db_conn.cursor()
+            sql = """SELECT vector, note FROM file_hashes INNER JOIN search_vectors USING(file_hash) LEFT OUTER JOIN notes USING(file_hash) WHERE path=?"""
+            cursor.execute(sql, (subfile_path, ))
+            results = cursor.fetchall()
+            for result in results:
+                _, ext = os.path.splitext(subfile_path)
+                ext = ext.lower()
+                if ext in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"]:
+                    file_type = "image"
+                elif ext in [".wav", ".mp3", ".ogg", ".flac", ".aac", ".m4a"]:
+                    file_type = "audio"
+                elif ext in [".mp4", ".mov", ".wmv", ".avi", ".webm", ".flv", ".mkv"]:
+                    file_type = "video"
+                elif ext in [".pdf", ".docx", ".pptx"]:
+                    file_type = "document"
+                else:
+                    file_type = "text"
+                if file_type in allow_types:
+                    file_vectors.append(buffer_to_tensor(result[0]))
+                    file_details.append({
+                        "path": subfile_path,
+                        "note": result[1],
+                        "type": file_type
+                    })
     db_conn.close()
 
 def search_main(batch_queries, k, min_rate):

@@ -12,6 +12,8 @@ global_base_path = None
 
 def files_ui_init_inputs(base_path):
     global global_base_path
+    if not os.path.isdir(base_path):
+        return
     global_base_path = base_path
 
 def files_ui_init():
@@ -19,6 +21,8 @@ def files_ui_init():
 
 def files_ui_base_path_on_changed(base_path):
     global global_base_path
+    if not os.path.isdir(base_path):
+        return
     global_base_path = base_path
     return gr.update(root_dir=global_base_path)
 
