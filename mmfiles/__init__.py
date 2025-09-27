@@ -6,5 +6,4 @@ def main_mcp():
     mcp.run()
 
 def main_app():
-    demo = main_ui()
-    demo.launch()
+    main_ui()
