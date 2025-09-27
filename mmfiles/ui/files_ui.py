@@ -17,7 +17,7 @@ def files_ui_init_inputs(base_path):
 def files_ui_init():
     return gr.update(root_dir=global_base_path)
 
-def files_base_path_on_changed(base_path):
+def files_ui_base_path_on_changed(base_path):
     global global_base_path
     global_base_path = base_path
     return gr.update(root_dir=global_base_path)

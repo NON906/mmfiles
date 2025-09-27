@@ -252,21 +252,23 @@ def update():
     db_conn.commit()
     db_conn.close()
 
-def search(query: str, k=5) -> list:
-    global file_vectors, file_details
-
-    files_init()
-
-    db_conn = sqlite3.connect(db_path)
-    
-    batch_queries = processor.process_queries([query]).to(model.device)
+def search_main(batch_queries, k, min_rate):
     with torch.no_grad():
         query_embeddings = model(**batch_queries)
     scores = processor.score_multi_vector(query_embeddings, file_vectors)
-    rank_list = scores[0].topk(len(file_vectors)).indices.tolist()
+    scores_topk = scores[0].topk(len(file_vectors))
+
+    rank_list = scores_topk.indices.tolist()
+    scores_list = scores_topk.values.tolist()
+
+    if min_rate > 0.0:
+        scores = processor.score_multi_vector(query_embeddings, query_embeddings)
+        min_length = float(scores[0][0]) * min_rate
+    else:
+        min_length = 0.0
 
     ret_list = []
-    for rank_index in rank_list:
+    for rank_index, score in zip(rank_list, scores_list):
         next_flag = False
         for ret_item in ret_list:
             if file_details[rank_index]["path"] == ret_item["path"]:
@@ -274,15 +276,34 @@ def search(query: str, k=5) -> list:
                 break
         if next_flag:
             continue
+
+        if score < min_length:
+            break
         
         ret_list.append(file_details[rank_index])
 
-        if len(ret_list) >= k:
+        if k > 0 and len(ret_list) >= k:
             break
 
-    db_conn.close()
-
     return ret_list
+
+def search(query: str, k=5, min_rate=0.0) -> list:
+    global file_vectors, file_details
+
+    files_init()
+    
+    batch_queries = processor.process_queries([query]).to(model.device)
+
+    return search_main(batch_queries, k, min_rate)
+
+def search_image(image: Image, k=5, min_rate=0.0) -> list:
+    global file_vectors, file_details
+
+    files_init()
+    
+    batch_queries = processor.process_images([image]).to(model.device)
+
+    return search_main(batch_queries, k, min_rate)
 
 def edit_note(note: str, path: str):
     db_conn = sqlite3.connect(db_path)
