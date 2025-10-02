@@ -4,6 +4,7 @@ import os
 
 from .files_ui import files_ui, files_ui_init_inputs, files_ui_init, files_ui_base_path_on_changed
 from .search_ui import search_ui, search_ui_init_inputs, search_ui_init, search_ui_base_path_on_changed
+from .mcp_ui import mcp_ui, mcp_ui_init_inputs, mcp_ui_init, mcp_ui_base_path_on_changed
 from .. import search
 
 def base_dir_changed(path):
@@ -37,13 +38,14 @@ def main_ui():
                 files_ui_outputs, files_ui_base_path_on_changed_outputs = files_ui()
             with gr.Tab("Search"):
                 search_ui_outputs, search_ui_base_path_on_changed_outputs = search_ui()
+            with gr.Tab("MCP"):
+                mcp_ui_outputs, mcp_ui_base_path_on_changed_outputs = mcp_ui()
             #with gr.Tab("Chat"):
             #    pass
-            with gr.Tab("MCP"):
-                pass
 
         files_ui_init_inputs(base_path)
         search_ui_init_inputs(base_path)
+        mcp_ui_init_inputs(base_path)
 
         base_path_button.click(
             base_dir_changed,
@@ -56,6 +58,10 @@ def main_ui():
             search_ui_base_path_on_changed,
             inputs=[base_path_textbox, ],
             outputs=search_ui_base_path_on_changed_outputs
+        ).then(
+            mcp_ui_base_path_on_changed,
+            inputs=[base_path_textbox, ],
+            outputs=mcp_ui_base_path_on_changed_outputs
         )
 
         demo.load(
@@ -64,6 +70,9 @@ def main_ui():
         ).then(
             search_ui_init,
             outputs=search_ui_outputs
+        ).then(
+            mcp_ui_init,
+            outputs=mcp_ui_outputs
         ).then(
             lambda: base_path,
             outputs=[base_path_textbox, ]
