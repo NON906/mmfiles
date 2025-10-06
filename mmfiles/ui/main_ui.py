@@ -24,6 +24,7 @@ def main_ui():
     base_path = args.path
     if base_path is None:
         base_path = os.path.abspath("files")
+        os.makedirs(base_path, exist_ok=True)
 
     base_dir_changed(base_path)
 
