@@ -1,11 +1,13 @@
 # mmfiles
 
-A multimodal search system (RAG) that can search for various files.
-It uses [vidore/colqwen-omni-v0.1](https://huggingface.co/vidore/colqwen-omni-v0.1) from [ColPali](https://github.com/illuin-tech/colpali).
-It has been tested on Windows.
-It also supports MCP, allowing you to search with compatible LLM (Large Language Model) services.
-Currently, it supports text, image, and audio files.
-You can make files searchable just by putting them in the specified directory.
+([日本語版はこちら](README_ja.md))
+
+A multimodal search system (RAG) that can search for various files.  
+It uses [vidore/colqwen-omni-v0.1](https://huggingface.co/vidore/colqwen-omni-v0.1) from [ColPali](https://github.com/illuin-tech/colpali).  
+It has been tested on Windows.  
+It also supports MCP, allowing you to search with compatible LLM (Large Language Model) services.  
+Currently, it supports text, image, and audio files.  
+You can make files searchable just by putting them in the specified directory.  
 
 ## How to Start
 
@@ -17,8 +19,8 @@ After installation, execute the following command in a command prompt or similar
 uvx --from git+https://github.com/NON906/mmfiles mmfiles
 ```
 
-You can change the directory to be searched by using `--path` (`-p`) as follows.
-(The default is the `files` folder in the current directory).
+You can change the directory to be searched by using `--path` (`-p`) as follows.  
+(The default is the `files` folder in the current directory).  
 
 ```
 uvx --from git+https://github.com/NON906/mmfiles mmfiles --path "D:\target_dir"
@@ -34,10 +36,10 @@ You can change the behavior by setting the following environment variables befor
 
 When started, your browser will open automatically, and you can add file descriptions (Notes) (optional) and search for files.
 
-In file search, you can specify either text or an image.
-(If text is entered, the image will be disabled).
-It is also possible to search for image and audio files with text.
-If there is a file description (Note), it will also be included in the search.
+In file search, you can specify either text or an image.  
+(If text is entered, the image will be disabled).  
+It is also possible to search for image and audio files with text.  
+If there is a file description (Note), it will also be included in the search.  
 
 ## How to Use MCP
 
